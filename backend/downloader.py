@@ -78,10 +78,21 @@ def get_media_info(url):
     """Video details aur available resolutions fetch karne ke liye"""
     clean_url = clean_youtube_url(url)
     
+    # Analyze click hote hi ye logs me print hoga
+    print("="*40, flush=True)
+    print(f"[NJ-LOG] Analyze clicked for URL: {clean_url}", flush=True)
+    print(f"[NJ-LOG] Resolved COOKIE_FILE path: {COOKIE_FILE}", flush=True)
+    if COOKIE_FILE and os.path.exists(COOKIE_FILE):
+        print(f"[NJ-LOG] Cookie file FOUND! Size: {os.path.getsize(COOKIE_FILE)} bytes", flush=True)
+    else:
+        print("[NJ-LOG] ERROR: Cookie file NOT FOUND in container!", flush=True)
+    print("="*40, flush=True)
+
     ydl_opts = {
         **COMMON_YDL_OPTS,
         'skip_download': True,
     }
+    # ... baki function ka code waisa hi rahega
 
     try:
         with yt_dlp.YoutubeDL(ydl_opts) as ydl:
