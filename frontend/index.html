@@ -1,0 +1,48 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>NJ Downloader - Fast Universal Video Downloader</title>
+    <link rel="stylesheet" href="css/style.css">
+</head>
+<body>
+    <div class="main-wrapper">
+        <header class="app-header">
+            <div class="logo">NJ <span>Downloader</span></div>
+            <p>Download Videos & Audio from YouTube, Instagram, Facebook in HD with Sound</p>
+        </header>
+
+        <section class="downloader-card">
+            <div class="input-container">
+                <input type="text" id="videoUrl" placeholder="Paste link here (YouTube, Reels, FB)..." autocomplete="off">
+                <button id="searchBtn" onclick="fetchVideoDetails()">
+                    <span id="btnText">Analyze</span>
+                </button>
+            </div>
+
+            <!-- Loading Spinner -->
+            <div id="loader" class="loader-box" style="display: none;">
+                <div class="spinner"></div>
+                <p id="loaderStatus">Analyzing link...</p>
+            </div>
+
+            <!-- Result Card -->
+            <div id="videoCard" class="video-card" style="display: none;">
+                <div class="card-thumb">
+                    <img id="thumbImg" src="" alt="Thumbnail">
+                </div>
+                <div class="card-details">
+                    <h3 id="videoTitle"></h3>
+                    <div class="quality-section">
+                        <label>Select Format / Quality:</label>
+                        <div id="qualityList" class="quality-grid"></div>
+                    </div>
+                </div>
+            </div>
+        </section>
+    </div>
+
+    <script src="js/app.js"></script>
+</body>
+</html>
