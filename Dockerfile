@@ -1,9 +1,9 @@
 # Lightweight Python 3.11 Linux base image
 FROM python:3.11-slim
 
-# System dependencies aur FFmpeg install karein
+# System dependencies, FFmpeg aur Git install karein
 RUN apt-get update && \
-    apt-get install -y --no-install-recommends ffmpeg curl && \
+    apt-get install -y --no-install-recommends ffmpeg curl git && \
     rm -rf /var/lib/apt/lists/*
 
 # Working directory set karein
