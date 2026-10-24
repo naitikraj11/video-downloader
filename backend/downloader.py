@@ -9,12 +9,41 @@ CURRENT_DIR = os.path.dirname(os.path.abspath(__file__))
 DOWNLOAD_DIR = os.path.join(CURRENT_DIR, 'downloads')
 os.makedirs(DOWNLOAD_DIR, exist_ok=True)
 
-# FFmpeg Auto-detection (Linux system path pehle dekhega, fir local windows folder)
+# FFmpeg Auto-detection (Linux container system path pehle check karega, fir local windows path)
 SYSTEM_FFMPEG = shutil.which("ffmpeg")
-if SYSTEM_FFMPEG:
-    FFMPEG_LOCATION = SYSTEM_FFMPEG
-else:
-    FFMPEG_LOCATION = CURRENT_DIR
+FFMPEG_LOCATION = SYSTEM_FFMPEG if SYSTEM_FFMPEG else CURRENT_DIR
+
+# Cookies Path Check (Render Secret File ya Local backend/cookies.txt)
+SECRET_COOKIE_PATH = "/etc/secrets/cookies.txt"
+LOCAL_COOKIE_PATH = os.path.join(CURRENT_DIR, "cookies.txt")
+
+COOKIE_FILE = None
+if os.path.exists(SECRET_COOKIE_PATH):
+    COOKIE_FILE = SECRET_COOKIE_PATH
+elif os.path.exists(LOCAL_COOKIE_PATH):
+    COOKIE_FILE = LOCAL_COOKIE_PATH
+
+# Universal YDL Options - YouTube datacenter IP block bypass karne ke liye
+COMMON_YDL_OPTS = {
+    'quiet': True,
+    'no_warnings': True,
+    'ffmpeg_location': FFMPEG_LOCATION,
+    # Mobile client spoofing taaki datacenter IP se bhi player response mile
+    'extractor_args': {
+        'youtube': {
+            'player_client': ['android', 'ios'],
+            'player_skip': ['webpage', 'configs']
+        }
+    },
+    'http_headers': {
+        'User-Agent': 'com.google.android.youtube/19.09.37 (Linux; U; Android 11) gzip',
+        'Accept-Language': 'en-US,en;q=0.9',
+    }
+}
+
+# Agar cookies file maujood hai to use automatically include karein
+if COOKIE_FILE:
+    COMMON_YDL_OPTS['cookiefile'] = COOKIE_FILE
 
 
 def sanitize_filename(name):
@@ -23,12 +52,10 @@ def sanitize_filename(name):
 
 
 def get_media_info(url):
-    """Video details aur sabhi available resolutions extract karne ke liye"""
+    """Video details aur available resolutions fetch karne ke liye"""
     ydl_opts = {
-        'quiet': True,
-        'no_warnings': True,
+        **COMMON_YDL_OPTS,
         'skip_download': True,
-        'ffmpeg_location': FFMPEG_LOCATION,
     }
 
     try:
@@ -41,7 +68,7 @@ def get_media_info(url):
             available_qualities = set()
             options = []
 
-            # Sabhi available video resolutions check karna
+            # Sabhi available video resolutions categorize karna
             for f in formats:
                 height = f.get('height')
                 vcodec = f.get('vcodec')
@@ -67,10 +94,10 @@ def get_media_info(url):
                             'order': target
                         })
 
-            # High to low resolution sort
+            # High to low resolution sort karein
             options.sort(key=lambda x: x['order'], reverse=True)
 
-            # Agar standard height na mile (e.g., Insta Reels / FB), universal fallback
+            # Fallback agar direct height metadata na mile (Instagram Reels / Facebook ke liye)
             if not options:
                 options.append({
                     'label': "Best Available Quality (Video + Audio)",
@@ -79,7 +106,7 @@ def get_media_info(url):
                     'order': 9999
                 })
 
-            # Audio Only option
+            # Audio-only extraction option
             options.append({
                 'label': "Audio Only (MP3)",
                 'format_id': "bestaudio/best",
@@ -99,8 +126,8 @@ def get_media_info(url):
 
 
 def download_selected_format(url, format_id, media_type):
-    """Selected format ko download aur audio ke sath merge karne ke liye"""
-    # Purani files clean up
+    """Selected format download karke audio ke sath merge karne ke liye"""
+    # Purane temporary downloads clean up karein
     for f in glob.glob(os.path.join(DOWNLOAD_DIR, "*")):
         try:
             os.remove(f)
@@ -110,11 +137,9 @@ def download_selected_format(url, format_id, media_type):
     out_template = os.path.join(DOWNLOAD_DIR, '%(id)s.%(ext)s')
 
     ydl_opts = {
+        **COMMON_YDL_OPTS,
         'format': format_id,
         'outtmpl': out_template,
-        'quiet': True,
-        'no_warnings': True,
-        'ffmpeg_location': FFMPEG_LOCATION,
     }
 
     if media_type == 'audio':
@@ -139,14 +164,14 @@ def download_selected_format(url, format_id, media_type):
             ext = 'mp3' if media_type == 'audio' else 'mp4'
             source_file = os.path.join(DOWNLOAD_DIR, f"{video_id}.{ext}")
 
-            # Fallback agar extension thoda alag ho
+            # Fallback check agar extension thoda alag format me download ho
             if not os.path.exists(source_file):
                 matches = glob.glob(os.path.join(DOWNLOAD_DIR, f"{video_id}.*"))
                 if matches:
                     source_file = matches[0]
                     ext = source_file.split('.')[-1]
 
-            # File ko clean video title ke naam se rename karna
+            # Original clean title se rename karna taaki download readable ho
             target_filename = f"{clean_title[:60]}.{ext}"
             target_file_path = os.path.join(DOWNLOAD_DIR, target_filename)
 
