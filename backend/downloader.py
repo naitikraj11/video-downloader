@@ -13,37 +13,60 @@ os.makedirs(DOWNLOAD_DIR, exist_ok=True)
 SYSTEM_FFMPEG = shutil.which("ffmpeg")
 FFMPEG_LOCATION = SYSTEM_FFMPEG if SYSTEM_FFMPEG else CURRENT_DIR
 
-# Cookies Path Check (Render Secret File ya Local backend/cookies.txt)
+# Cookies Path Check (Render Secret File, Local backend/cookies.txt, ya Root cookies.txt)
 SECRET_COOKIE_PATH = "/etc/secrets/cookies.txt"
 LOCAL_COOKIE_PATH = os.path.join(CURRENT_DIR, "cookies.txt")
+ROOT_COOKIE_PATH = os.path.join(os.path.dirname(CURRENT_DIR), "cookies.txt")
 
 COOKIE_FILE = None
 if os.path.exists(SECRET_COOKIE_PATH):
     COOKIE_FILE = SECRET_COOKIE_PATH
 elif os.path.exists(LOCAL_COOKIE_PATH):
     COOKIE_FILE = LOCAL_COOKIE_PATH
+elif os.path.exists(ROOT_COOKIE_PATH):
+    COOKIE_FILE = ROOT_COOKIE_PATH
 
-# Universal YDL Options - YouTube datacenter IP block bypass karne ke liye
+# Debug Log - Render console me confirm karne ke liye
+if COOKIE_FILE:
+    print(f"[NJ-LOG] Cookie file found at: {COOKIE_FILE} (Size: {os.path.getsize(COOKIE_FILE)} bytes)")
+else:
+    print("[NJ-LOG] WARNING: No cookies.txt found in any path!")
+
+# Universal YDL Options
 COMMON_YDL_OPTS = {
-    'quiet': True,
-    'no_warnings': True,
+    'quiet': False,               # Debugging ke liye full output
+    'no_warnings': False,
+    'noplaylist': True,           # Mix/Playlist pages ko fetch karna block karein
     'ffmpeg_location': FFMPEG_LOCATION,
-    # Mobile client spoofing taaki datacenter IP se bhi player response mile
     'extractor_args': {
         'youtube': {
-            'player_client': ['android', 'ios'],
-            'player_skip': ['webpage', 'configs']
+            'player_client': ['mweb', 'android', 'web'],
+            'player_skip': ['configs']
         }
     },
     'http_headers': {
-        'User-Agent': 'com.google.android.youtube/19.09.37 (Linux; U; Android 11) gzip',
+        'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/124.0.0.0 Safari/537.36',
         'Accept-Language': 'en-US,en;q=0.9',
     }
 }
 
-# Agar cookies file maujood hai to use automatically include karein
+# Cookie load karein agar file mili ho
 if COOKIE_FILE:
     COMMON_YDL_OPTS['cookiefile'] = COOKIE_FILE
+
+
+def clean_youtube_url(url):
+    """Playlist aur Mix parameters (&list=, &index=) hatakar pure single video URL nikalna"""
+    if "youtube.com" in url or "youtu.be" in url:
+        if "watch?v=" in url:
+            match = re.search(r'v=([a-zA-Z0-9_-]{11})', url)
+            if match:
+                return f"https://www.youtube.com/watch?v={match.group(1)}"
+        elif "youtu.be/" in url:
+            match = re.search(r'youtu\.be/([a-zA-Z0-9_-]{11})', url)
+            if match:
+                return f"https://www.youtube.com/watch?v={match.group(1)}"
+    return url
 
 
 def sanitize_filename(name):
@@ -53,6 +76,8 @@ def sanitize_filename(name):
 
 def get_media_info(url):
     """Video details aur available resolutions fetch karne ke liye"""
+    clean_url = clean_youtube_url(url)
+    
     ydl_opts = {
         **COMMON_YDL_OPTS,
         'skip_download': True,
@@ -60,7 +85,7 @@ def get_media_info(url):
 
     try:
         with yt_dlp.YoutubeDL(ydl_opts) as ydl:
-            info = ydl.extract_info(url, download=False)
+            info = ydl.extract_info(clean_url, download=False)
             if 'entries' in info:
                 info = info['entries'][0]
 
@@ -127,6 +152,8 @@ def get_media_info(url):
 
 def download_selected_format(url, format_id, media_type):
     """Selected format download karke audio ke sath merge karne ke liye"""
+    clean_url = clean_youtube_url(url)
+
     # Purane temporary downloads clean up karein
     for f in glob.glob(os.path.join(DOWNLOAD_DIR, "*")):
         try:
@@ -153,7 +180,7 @@ def download_selected_format(url, format_id, media_type):
 
     try:
         with yt_dlp.YoutubeDL(ydl_opts) as ydl:
-            info = ydl.extract_info(url, download=True)
+            info = ydl.extract_info(clean_url, download=True)
             if 'entries' in info:
                 info = info['entries'][0]
 
@@ -171,7 +198,7 @@ def download_selected_format(url, format_id, media_type):
                     source_file = matches[0]
                     ext = source_file.split('.')[-1]
 
-            # Original clean title se rename karna taaki download readable ho
+            # Original clean title se rename karna
             target_filename = f"{clean_title[:60]}.{ext}"
             target_file_path = os.path.join(DOWNLOAD_DIR, target_filename)
 
